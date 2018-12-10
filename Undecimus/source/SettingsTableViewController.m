@@ -306,7 +306,7 @@ extern int necp_die(void);
 
 - (IBAction)tappedOnRestart:(id)sender {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0ul), ^{
-        NOTICE("The device will be restarted.", 1, 0);
+        NOTICE(@"The device will be restarted.", true, false);
         switch (selectRestartExploit()) {
             case EMPTY_LIST: {
                 vfs_die();
@@ -390,11 +390,11 @@ extern int necp_die(void);
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0ul), ^{
         NSString *Update = [NSString stringWithContentsOfURL:[NSURL URLWithString:@"https://github.com/pwn20wndstuff/Undecimus/raw/master/Update.txt"] encoding:NSUTF8StringEncoding error:nil];
         if (Update == nil) {
-            NOTICE("Failed to check for update.", 1, 0);
+            NOTICE(@"Failed to check for update.", true, false);
         } else if ([Update isEqualToString:[NSString stringWithFormat:@"%@\n", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"]]]) {
-            NOTICE("Already up to date.", 1, 0);
+            NOTICE(@"Already up to date.", true, false);
         } else {
-            NOTICE("An update is available.", 1, 0);
+            NOTICE(@"An update is available.", true, false);
         }
     });
 }
@@ -446,8 +446,8 @@ extern int necp_die(void);
 
 - (IBAction)tappedRestartSpringBoard:(id)sender {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0ul), ^{
-        SETMESSAGE("Failed to restart SpringBoard.");
-        NOTICE("SpringBoard will be restarted.", 1, 0);
+        SETMESSAGE(@"Failed to restart SpringBoard.");
+        NOTICE(@"SpringBoard will be restarted.", true, false);
         switch (selectRespringExploit()) {
             case DEJA_XNU: {
                 mach_port_t bb_tp = hid_event_queue_exploit();
