@@ -4,9 +4,12 @@
 
 #include <mach/mach.h>
 
+#include <QiLin.h>
+#include <iokit.h>
+#include <common.h>
+
 #include "kutils.h"
 #include "kmem.h"
-#include "QiLin.h"
 #include "offsets.h"
 #include "find_port.h"
 
@@ -16,7 +19,7 @@ uint64_t cached_task_self_addr = 0;
 uint64_t task_self_addr() {
   if (cached_task_self_addr == 0) {
     cached_task_self_addr = (kCFCoreFoundationVersionNumber >= 1450.14) ? getAddressOfPort(getpid(), mach_task_self()) : find_port_address(mach_task_self(), MACH_MSG_TYPE_COPY_SEND);
-    printf("task self: 0x%llx\n", cached_task_self_addr);
+    LOG("task self: 0x%llx\n", cached_task_self_addr);
   }
   return cached_task_self_addr;
 }
@@ -61,7 +64,7 @@ mach_port_t fake_host_priv() {
   kern_return_t err;
   err = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &port);
   if (err != KERN_SUCCESS) {
-    printf("failed to allocate port\n");
+    LOG("failed to allocate port\n");
     return MACH_PORT_NULL;
   }
   

@@ -1574,6 +1574,7 @@ addr_t find_kernproc(void) {
     addr_t kernproc = calc64(kernel, ret_str, end_of_function, 19);
     return kernproc + kerndumpbase;
 }
+
 #ifdef HAVE_MAIN
 #include <mach-o/nlist.h>
 

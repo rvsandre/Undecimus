@@ -1,9 +1,10 @@
 #include <pthread.h>
+#include <QiLin.h>
+#include <common.h>
+#include <iokit.h>
 #include "kmem.h"
 #include "kexecute.h"
-#include "QiLin.h"
 #include "offsets.h"
-#include "iokit.h"
 
 mach_port_t prepare_user_client() {
     kern_return_t err;
@@ -11,18 +12,18 @@ mach_port_t prepare_user_client() {
     io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOSurfaceRoot"));
     
     if (service == IO_OBJECT_NULL) {
-        printf(" [-] unable to find service\n");
+        LOG(" [-] unable to find service\n");
         exit(EXIT_FAILURE);
     }
     
     err = IOServiceOpen(service, mach_task_self(), 0, &user_client);
     if (err != KERN_SUCCESS) {
-        printf(" [-] unable to get user client connection\n");
+        LOG(" [-] unable to get user client connection\n");
         exit(EXIT_FAILURE);
     }
     
     
-    printf("got user client: 0x%x\n", user_client);
+    LOG("got user client: 0x%x\n", user_client);
     return user_client;
 }
 

